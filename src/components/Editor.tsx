@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 import { Button, TextField, Box } from '@mui/material'
 import SaveIcon from '@mui/icons-material/Save'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
@@ -9,7 +10,20 @@ const Editor = () => {
   const [filePath, setFilePath] = useState<string | null>(null)
 
   const handleOpen = async () => {
-    const selected = await invoke<string>('dialog_open')
+    const selected = await open({
+      multiple: false,
+      filters: [
+        {
+          name: 'Text',
+          extensions: ['txt'],
+        },
+        {
+          name: 'All',
+          extensions: ['*'],
+        },
+      ],
+    })
+    console.log(selected)
     if (selected) {
       const text = await invoke<string>('read_file', { path: selected })
       setContent(text)
@@ -30,7 +44,7 @@ const Editor = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3 }} width={"1000px"}>
       <Box sx={{ mb: 2 }}>
         <Button
           variant="contained"

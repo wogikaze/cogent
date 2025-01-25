@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -16,6 +17,7 @@
     "@mui/material": "^6.4.1",
     "@tauri-apps/api": "^2.2.0",
     "@tauri-apps/cli": "^2.2.5",
+    "@tauri-apps/plugin-dialog": "^2.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
