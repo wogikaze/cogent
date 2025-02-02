@@ -1,9 +1,8 @@
-import { useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
-import { Button, TextField, Box } from '@mui/material'
-import SaveIcon from '@mui/icons-material/Save'
-import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import { FolderOpenIcon, SaveIcon } from '@yamada-ui/lucide'
+import { Box, Button, Textarea } from '@yamada-ui/react'
+import { useState } from 'react'
 
 const Editor = () => {
   const [content, setContent] = useState('')
@@ -62,14 +61,14 @@ const Editor = () => {
           保存
         </Button>
       </Box>
-      <TextField
-        multiline
-        fullWidth
+      <Textarea
         minRows={20}
+        h="100%"
         variant="outlined"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         disabled={!filePath}
+        bg="gray.100"
       />
     </Box>
   )
