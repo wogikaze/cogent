@@ -1,32 +1,33 @@
 // FileTree.tsx
 import { invoke } from "@tauri-apps/api/core";
 import { FileIcon, FolderIcon, FolderMinusIcon } from "@yamada-ui/lucide";
-import {
-    Accordion,
-    AccordionItem,
-    AccordionLabel,
-    AccordionPanel,
-    Loading,
-    Text,
-} from "@yamada-ui/react";
+import { Accordion, AccordionItem, AccordionLabel, AccordionPanel, Loading, Text } from "@yamada-ui/react";
 import React, { useState } from "react";
 
 // ファイルまたはフォルダの型定義
 export interface FileNode {
     name: string;
-    path: string; // ファイルのフルパス
+    path: string;
     is_directory: boolean;
-    // 初期状態では children は undefined とし、必要になったときに取得する
     children?: FileNode[];
 }
 
-// 指定されたパスの子要素を取得する非同期関数
+// FileTree コンポーネントの props 定義
+interface FileTreeProps {
+    fileStructure: FileNode[];
+    onFileDoubleClick: (path: string) => void;
+}
+
 const fetchChildren = async (path: string): Promise<FileNode[]> => {
     return await invoke<FileNode[]>("list_directory", { path });
 };
 
+interface FileNodeItemComponentProps {
+    node: FileNode;
+    onFileDoubleClick: (path: string) => void;
+}
 // 各ファイル/フォルダの表示を担当するコンポーネント
-const FileNodeItemComponent: React.FC<{ node: FileNode }> = ({ node }) => {
+const FileNodeItemComponent: React.FC<FileNodeItemComponentProps> = ({ node, onFileDoubleClick }) => {
     // 初期状態：node.children が undefined なら null とする
     const [children, setChildren] = useState<FileNode[] | null>(node.children ?? null);
     const [loading, setLoading] = useState(false);
@@ -37,7 +38,6 @@ const FileNodeItemComponent: React.FC<{ node: FileNode }> = ({ node }) => {
     const handleExpand = async () => {
         setLoading(true);
         try {
-            // まず、子要素が存在しなければ直下の子要素を取得する
             let currentChildren = children;
             if (currentChildren === null) {
                 currentChildren = await fetchChildren(node.path);
@@ -49,14 +49,11 @@ const FileNodeItemComponent: React.FC<{ node: FileNode }> = ({ node }) => {
         setLoading(false);
     };
 
-    // トグル用のハンドラ。展開中なら閉じる際にキャッシュ削除する
     const handleToggle = async () => {
         if (!expanded) {
-            // 開く場合は、子要素・孫要素を取得
             await handleExpand();
         } else {
-            // 閉じる場合はキャッシュをクリア（メモリ解放）
-            setChildren(null)
+            setChildren(null);
         }
         setExpanded(!expanded);
     };
@@ -64,29 +61,30 @@ const FileNodeItemComponent: React.FC<{ node: FileNode }> = ({ node }) => {
     if (node.is_directory) {
         return (
             <AccordionItem key={node.path} borderY="none">
-                {/* AccordionLabel の onClick を handleToggle に変更 */}
                 <AccordionLabel py="0" onClick={handleToggle}>
-                    {children ? <FolderIcon mr="8px" color={"orange"} />
-                        : <FolderMinusIcon mr="8px" color={"orange"} />}
+                    {children ? <FolderIcon mr="8px" color="orange" /> : <FolderMinusIcon mr="8px" color="orange" />}
                     {node.name}
                     {loading && <Loading fontSize="sm" mr="4px" />}
                 </AccordionLabel>
-                <AccordionPanel
-                    px="0"
-                    ml="16px"
-                    py="0"
-                    borderLeft="1px solid #2c2c2c"
-                >
+                <AccordionPanel px="0" ml="16px" py="0" borderLeft="1px solid #2c2c2c">
                     {children &&
                         children.map((child) => (
-                            <FileNodeItemComponent key={child.path} node={child} />
+                            <FileNodeItemComponent key={child.path} node={child} onFileDoubleClick={onFileDoubleClick} />
                         ))}
                 </AccordionPanel>
             </AccordionItem>
         );
     } else {
         return (
-            <Text key={node.path} align="left" ml="16px">
+            <Text
+                key={node.path}
+                align="left"
+                ml="16px"
+                // ファイルの場合は、ダブルクリックで onFileDoubleClick を呼び出す
+                onDoubleClick={() => onFileDoubleClick(node.path)}
+                cursor="pointer"
+                _hover={{ textDecoration: "underline" }}
+            >
                 <FileIcon mr="4px" />
                 {node.name}
             </Text>
@@ -94,16 +92,11 @@ const FileNodeItemComponent: React.FC<{ node: FileNode }> = ({ node }) => {
     }
 };
 
-// FileTree コンポーネント（App から fileStructure を受け取る）
-export default function FileTree({
-    fileStructure,
-}: {
-    fileStructure: FileNode[];
-}) {
+export default function FileTree({ fileStructure, onFileDoubleClick }: FileTreeProps) {
     return (
         <Accordion multiple iconHidden borderLeft="1px gray.900 solid">
             {fileStructure.map((node) => (
-                <FileNodeItemComponent key={node.path} node={node} />
+                <FileNodeItemComponent key={node.path} node={node} onFileDoubleClick={onFileDoubleClick} />
             ))}
         </Accordion>
     );
