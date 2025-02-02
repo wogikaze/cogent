@@ -74,7 +74,7 @@ struct DirectoryEntry {
 
 // Tauriのコマンドとして非同期に実行される関数。
 // 指定されたディレクトリパス内のファイルやサブディレクトリをリストアップする。
-#[command]
+#[tauri::command]
 async fn list_directory<R: Runtime>(
     _app: AppHandle<R>,  // アプリケーションハンドル（現在の処理内では使用していない）
     path: Option<String>, // リストアップするディレクトリのパス。Noneの場合はルートパスとみなす

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
-import { FolderOpenIcon, SaveIcon } from '@yamada-ui/lucide'
+// import { open } from '@tauri-apps/plugin-dialog'
+import { SaveIcon } from '@yamada-ui/lucide'
 import { Box, Button, Textarea } from '@yamada-ui/react'
 import { useState } from 'react'
 
@@ -8,27 +8,10 @@ const Editor = () => {
   const [content, setContent] = useState('')
   const [filePath, setFilePath] = useState<string | null>(null)
 
-  const handleOpen = async () => {
-    const selected = await open({
-      multiple: false,
-      filters: [
-        {
-          name: 'Text',
-          extensions: ['txt'],
-        },
-        {
-          name: 'All',
-          extensions: ['*'],
-        },
-      ],
-    })
-    console.log(selected)
-    if (selected) {
-      const text = await invoke<string>('read_file', { path: selected })
-      setContent(text)
-      setFilePath(selected)
-    }
-  }
+  // const text = await invoke<string>('read_file', { path: selected })
+  // setContent(text)
+  // setFilePath(selected)
+
 
   const handleSave = async () => {
     if (filePath) {
@@ -45,14 +28,6 @@ const Editor = () => {
   return (
     <Box sx={{ p: 3 }} width={"1000px"}>
       <Box sx={{ mb: 2 }}>
-        <Button
-          variant="contained"
-          startIcon={<FolderOpenIcon />}
-          onClick={handleOpen}
-          sx={{ mr: 2 }}
-        >
-          開く
-        </Button>
         <Button
           variant="contained"
           startIcon={<SaveIcon />}

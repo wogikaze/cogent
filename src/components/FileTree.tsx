@@ -1,91 +1,105 @@
+// FileTree.tsx
+import { invoke } from "@tauri-apps/api/core";
 import { FileIcon, FolderIcon } from "@yamada-ui/lucide";
 import {
     Accordion,
     AccordionItem,
     AccordionLabel,
     AccordionPanel,
-    Text
+    Loading,
+    Text,
 } from "@yamada-ui/react";
-import React from "react";
+import React, { useState } from "react";
 
 // ファイルまたはフォルダの型定義
-interface FileNode {
+export interface FileNode {
     name: string;
-    children?: FileNode[]; // 子要素がある場合は再帰的に FileNode 型の配列
+    path: string; // ファイルのフルパス
+    is_directory: boolean;
+    // 初期状態では children は undefined とし、必要になったときに取得する
+    children?: FileNode[];
 }
 
-const fileStructure: FileNode[] = [
-    {
-        name: "フォルダ1",
-        children: [
-            {
-                name: "ファイル1-1",
-                children: [{ name: "ファイル1-1-1" }],
-            },
-            { name: "ファイル1-2" },
-            { name: "ファイル1-3" },
-        ],
-    },
-    {
-        name: "フォルダ2",
-        children: [
-            { name: "ファイル2-1" },
-            { name: "ファイル2-2" },
-            { name: "ファイル2-3" },
-        ],
-    },
-    {
-        name: "フォルダ3",
-        children: [
-            { name: "ファイル3-1" },
-            { name: "ファイル3-2" },
-            { name: "ファイル3-3" },
-        ],
-    },
-];
+// 指定されたパスの子要素を取得する非同期関数
+const fetchChildren = async (path: string): Promise<FileNode[]> => {
+    return await invoke<FileNode[]>("list_directory", { path });
+};
+
+// 各ファイル/フォルダの表示を担当するコンポーネント
+const FileNodeItem: React.FC<{ node: FileNode }> = ({ node }) => {
+    // 初期状態：node.children が undefined なら null とする
+    const [children, setChildren] = useState<FileNode[] | null>(
+        node.children ?? null
+    );
+    const [loading, setLoading] = useState(false);
+
+    // フォルダがクリックされたとき、未取得の場合は子要素を取得する
+    const handleExpand = async () => {
+        if (node.is_directory && children === null) {
+            setLoading(true);
+            try {
+                const fetchedChildren = await fetchChildren(node.path);
+                setChildren(fetchedChildren);
+            } catch (error) {
+                console.error("子要素の取得に失敗しました", error);
+            }
+            setLoading(false);
+        }
+    };
+
+    if (node.is_directory) {
+        return (
+            <AccordionItem key={node.path} borderY="none">
+                <AccordionLabel py="0" onClick={handleExpand}>
+                    <FolderIcon mr="8px" color={"orange"} />
+                    {node.name}
+                </AccordionLabel>
+                <AccordionPanel
+                    px="0"
+                    ml="16px"
+                    py="0"
+                    borderLeft="1px solid #2c2c2c"
+                >
+                    {loading && <Loading></Loading>}
+                    {!loading && children &&
+                        children.map((child) => (
+                            <FileNodeItem key={child.path} node={child} />
+                        ))}
+                </AccordionPanel>
+            </AccordionItem>
+        );
+    } else {
+        return (
+            <Text key={node.path} align="left" ml="16px">
+                <FileIcon mr="4px" />
+                {node.name}
+            </Text>
+        );
+    }
+};
 
 interface FileStructureAccordionProps {
     structure: FileNode[];
 }
 
+// ルートレベルのファイル/フォルダリストを再帰的にレンダリングするコンポーネント
 const FileStructureAccordion: React.FC<FileStructureAccordionProps> = ({
     structure,
 }) => {
-    /**
-     * nodes に対して再帰的に要素を生成する
-     * @param nodes ファイル/フォルダのリスト
-     */
-    const renderFileNodes = (nodes: FileNode[]) => {
-        return nodes.map((node) => {
-            if (node.children) {
-                // 子要素がある場合は AccordionItem としてレンダリング
-                return (
-                    <AccordionItem key={node.name} borderY={"none"}>
-                        <AccordionLabel py="0">
-                            <FolderIcon mr={"8px"} />
-                            {node.name}
-                        </AccordionLabel>
-                        <AccordionPanel px="0" ml={"16px"} py="0" borderLeft={"1px solid #2c2c2c"}>
-                            {renderFileNodes(node.children)}
-                        </AccordionPanel>
-                    </AccordionItem>
-                );
-            } else {
-                // 子要素がなければ単なるラベルとして表示
-                return (
-                    <Text key={node.name} align={"left"} ml={"16px"}>
-                        <FileIcon></FileIcon>
-                        {node.name}
-                    </Text>
-                );
-            }
-        });
-    };
-
-    // ここで1個の Accordion を返す
-    return <Accordion multiple iconHidden={true} borderLeft={"1px gray.900 solid"}>{renderFileNodes(structure)}</Accordion>;
+    return (
+        <Accordion multiple iconHidden borderLeft="1px gray.900 solid">
+            {structure.map((node) => (
+                <FileNodeItem key={node.path} node={node} />
+            ))}
+        </Accordion>
+    );
 };
 
-export default function App() {
+// FileTree コンポーネント（App から fileStructure を受け取る）
+export default function FileTree({
+    fileStructure,
+}: {
+    fileStructure: FileNode[];
+}) {
     return <FileStructureAccordion structure={fileStructure} />;
 }
