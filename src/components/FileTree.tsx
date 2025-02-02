@@ -1,6 +1,6 @@
 // FileTree.tsx
 import { invoke } from "@tauri-apps/api/core";
-import { FileIcon, FolderIcon } from "@yamada-ui/lucide";
+import { FileIcon, FolderIcon, FolderMinusIcon } from "@yamada-ui/lucide";
 import {
     Accordion,
     AccordionItem,
@@ -26,33 +26,50 @@ const fetchChildren = async (path: string): Promise<FileNode[]> => {
 };
 
 // 各ファイル/フォルダの表示を担当するコンポーネント
-const FileNodeItem: React.FC<{ node: FileNode }> = ({ node }) => {
+const FileNodeItemComponent: React.FC<{ node: FileNode }> = ({ node }) => {
     // 初期状態：node.children が undefined なら null とする
-    const [children, setChildren] = useState<FileNode[] | null>(
-        node.children ?? null
-    );
+    const [children, setChildren] = useState<FileNode[] | null>(node.children ?? null);
     const [loading, setLoading] = useState(false);
+    // 展開状態を管理。true: 開いている、false: 閉じている
+    const [expanded, setExpanded] = useState(false);
 
-    // フォルダがクリックされたとき、未取得の場合は子要素を取得する
+    // フォルダを開く場合、子要素がないなら取得し、あるなら必ず孫要素を更新取得する
     const handleExpand = async () => {
-        if (node.is_directory && children === null) {
-            setLoading(true);
-            try {
-                const fetchedChildren = await fetchChildren(node.path);
-                setChildren(fetchedChildren);
-            } catch (error) {
-                console.error("子要素の取得に失敗しました", error);
+        setLoading(true);
+        try {
+            // まず、子要素が存在しなければ直下の子要素を取得する
+            let currentChildren = children;
+            if (currentChildren === null) {
+                currentChildren = await fetchChildren(node.path);
             }
-            setLoading(false);
+            setChildren(currentChildren);
+        } catch (error) {
+            console.error("子要素の取得に失敗しました", error);
         }
+        setLoading(false);
+    };
+
+    // トグル用のハンドラ。展開中なら閉じる際にキャッシュ削除する
+    const handleToggle = async () => {
+        if (!expanded) {
+            // 開く場合は、子要素・孫要素を取得
+            await handleExpand();
+        } else {
+            // 閉じる場合はキャッシュをクリア（メモリ解放）
+            setChildren(null)
+        }
+        setExpanded(!expanded);
     };
 
     if (node.is_directory) {
         return (
             <AccordionItem key={node.path} borderY="none">
-                <AccordionLabel py="0" onClick={handleExpand}>
-                    <FolderIcon mr="8px" color={"orange"} />
+                {/* AccordionLabel の onClick を handleToggle に変更 */}
+                <AccordionLabel py="0" onClick={handleToggle}>
+                    {children ? <FolderIcon mr="8px" color={"orange"} />
+                        : <FolderMinusIcon mr="8px" color={"orange"} />}
                     {node.name}
+                    {loading && <Loading fontSize="sm" mr="4px" />}
                 </AccordionLabel>
                 <AccordionPanel
                     px="0"
@@ -60,10 +77,9 @@ const FileNodeItem: React.FC<{ node: FileNode }> = ({ node }) => {
                     py="0"
                     borderLeft="1px solid #2c2c2c"
                 >
-                    {loading && <Loading></Loading>}
-                    {!loading && children &&
+                    {children &&
                         children.map((child) => (
-                            <FileNodeItem key={child.path} node={child} />
+                            <FileNodeItemComponent key={child.path} node={child} />
                         ))}
                 </AccordionPanel>
             </AccordionItem>
@@ -78,28 +94,17 @@ const FileNodeItem: React.FC<{ node: FileNode }> = ({ node }) => {
     }
 };
 
-interface FileStructureAccordionProps {
-    structure: FileNode[];
-}
-
-// ルートレベルのファイル/フォルダリストを再帰的にレンダリングするコンポーネント
-const FileStructureAccordion: React.FC<FileStructureAccordionProps> = ({
-    structure,
-}) => {
-    return (
-        <Accordion multiple iconHidden borderLeft="1px gray.900 solid">
-            {structure.map((node) => (
-                <FileNodeItem key={node.path} node={node} />
-            ))}
-        </Accordion>
-    );
-};
-
 // FileTree コンポーネント（App から fileStructure を受け取る）
 export default function FileTree({
     fileStructure,
 }: {
     fileStructure: FileNode[];
 }) {
-    return <FileStructureAccordion structure={fileStructure} />;
+    return (
+        <Accordion multiple iconHidden borderLeft="1px gray.900 solid">
+            {fileStructure.map((node) => (
+                <FileNodeItemComponent key={node.path} node={node} />
+            ))}
+        </Accordion>
+    );
 }
